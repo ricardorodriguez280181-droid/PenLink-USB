@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PenLink">
+<meta name="theme-color" content="#000000">
+<title>PenLink</title>
+<style>
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    font: 13px/1.2 -apple-system, system-ui, sans-serif;
+  }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #screen, #jpeg { display: block; background: #000; touch-action: none; cursor: none; object-fit: fill; }
+  #screen::-webkit-media-controls { display: none !important; }
+  #cursor {
+    position: fixed; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    border: 2px solid rgba(255, 255, 255, .9); border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .6); pointer-events: none;
+  }
+  #cursor.down { background: rgba(255, 255, 255, .35); }
+  #hud {
+    position: fixed; top: max(8px, env(safe-area-inset-top)); left: 8px;
+    display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 999px;
+    background: rgba(30, 30, 30, .72); color: #ddd; opacity: .85;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  #hud button { background: none; border: 0; color: inherit; font-size: 16px; padding: 0 2px; }
+  #pair {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; background: #111; color: #eee; text-align: center; padding: 24px;
+  }
+  #pair h1 { margin: 0; font-size: 28px; font-weight: 600; }
+  #pair p { margin: 0; font-size: 16px; color: #aaa; max-width: 420px; }
+  #pair input {
+    -webkit-user-select: text; user-select: text; width: 220px; padding: 14px; font-size: 28px;
+    letter-spacing: 8px; text-align: center; border-radius: 12px; border: 1px solid #444;
+    background: #1e1e1e; color: #fff;
+  }
+  #pair button {
+    padding: 12px 36px; font-size: 18px; border: 0; border-radius: 12px; background: #3b82f6; color: #fff;
+  }
+  #pair button:disabled { opacity: .5; }
+  #pairMsg { min-height: 20px; color: #f87171; font-size: 15px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <video id="screen" muted autoplay playsinline webkit-playsinline disablepictureinpicture disableremoteplayback></video>
+    <canvas id="jpeg" width="16" height="9" hidden></canvas>
+  </div>
+  <div id="cursor" hidden></div>
+  <div id="hud">
+    <span id="status">connecting…</span>
+    <button id="fs" type="button" aria-label="Toggle full screen">⛶</button>
+  </div>
+  <div id="pair" hidden>
+    <h1>PenLink</h1>
+    <p>Enter the PIN shown in the PenLink window on your PC. You only need to do this once on this iPad.</p>
+    <input id="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="······">
+    <button id="pairBtn" type="button">Connect</button>
+    <div id="pairMsg"></div>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
