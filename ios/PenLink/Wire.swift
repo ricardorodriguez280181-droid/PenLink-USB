@@ -7,6 +7,8 @@ enum MsgType: UInt8 {
     case pen = 3     // iPad -> PC  JSON [[x,y,pressure,tiltX,tiltY,state],...]
     case ack = 4     // iPad -> PC  a frame was received
     case log = 5     // iPad -> PC  UTF-8 text
+    case vconfig = 6 // PC -> iPad  JSON {"nal":4,"sps":base64,"pps":base64}
+    case video = 7   // PC -> iPad  1 flag byte (bit 0 = keyframe) + one H.264 frame (AVCC)
 }
 
 enum Wire {

@@ -7,6 +7,8 @@ final class PenView: UIView {
     var onToggleLog: (() -> Void)?
 
     private let imageView = UIImageView()
+    private var videoLayer: CALayer?
+    private var contentSize = CGSize.zero      // picture size announced by the PC
     private var activeTouch: UITouch?
 
     override init(frame: CGRect) {
@@ -43,6 +45,25 @@ final class PenView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         imageView.frame = bounds
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        videoLayer?.frame = bounds
+        CATransaction.commit()
+    }
+
+    /// The H.264 layer is added once; configure() decides whether it or the JPEG view is visible.
+    func attach(videoLayer layer: CALayer) {
+        layer.frame = bounds
+        layer.isHidden = true
+        self.layer.insertSublayer(layer, above: imageView.layer)
+        videoLayer = layer
+    }
+
+    func configure(size: CGSize, video: Bool) {
+        contentSize = size
+        videoLayer?.isHidden = !video
+        imageView.isHidden = video
+        imageView.image = nil
     }
 
     func show(_ image: UIImage) {
@@ -53,8 +74,8 @@ final class PenView: UIView {
 
     /// Where the picture really is inside the view (aspect fit leaves black bars).
     private func pictureRect() -> CGRect {
-        guard let size = imageView.image?.size, size.width > 0, size.height > 0,
-              bounds.width > 0, bounds.height > 0 else { return bounds }
+        let size = contentSize.width > 0 ? contentSize : (imageView.image?.size ?? CGSize.zero)
+        guard size.width > 0, size.height > 0, bounds.width > 0, bounds.height > 0 else { return bounds }
         let scale = min(bounds.width / size.width, bounds.height / size.height)
         let w = size.width * scale
         let h = size.height * scale

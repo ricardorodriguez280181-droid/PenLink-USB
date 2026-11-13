@@ -10,8 +10,12 @@ final class USBServer: ObservableObject {
     @Published var status = "Starting..."
     @Published var connected = false
 
-    /// Called on the main thread with each decoded frame.
+    /// Called on the main thread with each decoded JPEG frame.
     var onFrame: ((UIImage) -> Void)?
+    /// Called on the main thread when a PC connects: picture size in pixels and the codec ("h264" or "jpeg").
+    var onHello: ((CGSize, String) -> Void)?
+    /// Shows H.264 frames. PenView adds its layer to the screen.
+    let player = H264Player()
 
     private let queue = DispatchQueue(label: "penlink.net")
     private let decodeQueue = DispatchQueue(label: "penlink.decode", qos: .userInteractive)
@@ -169,12 +173,40 @@ final class USBServer: ObservableObject {
         guard let kind = MsgType(rawValue: type) else { return }
         switch kind {
         case .hello:
-            if let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] {
-                AppLog.shared.add("Hello: PC picture \(obj["fw"] ?? "?") x \(obj["fh"] ?? "?")")
+            guard let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] else { return }
+            let width = (obj["fw"] as? NSNumber)?.doubleValue ?? 0
+            let height = (obj["fh"] as? NSNumber)?.doubleValue ?? 0
+            let codec = obj["codec"] as? String ?? "jpeg"
+            AppLog.shared.add("Hello: \(Int(width)) x \(Int(height)), \(codec)")
+            decodeQueue.async { [weak self] in
+                self?.player.reset()
+            }
+            DispatchQueue.main.async { [weak self] in
+                self?.onHello?(CGSize(width: width, height: height), codec)
+            }
+        case .vconfig:
+            guard let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
+                  let spsText = obj["sps"] as? String, let ppsText = obj["pps"] as? String,
+                  let sps = Data(base64Encoded: spsText), let pps = Data(base64Encoded: ppsText) else {
+                AppLog.shared.add("Bad video config")
+                return
+            }
+            let nal = (obj["nal"] as? NSNumber)?.intValue ?? 4
+            decodeQueue.async { [weak self] in
+                self?.player.configure(sps: sps, pps: pps, nalLength: nal)
             }
         case .frame:
             decodeQueue.async { [weak self] in
                 self?.decode(payload)
+            }
+        case .video:
+            if payload.count < 2 { return }
+            let keyframe = (payload[0] & 1) != 0
+            let body = payload.subdata(in: 1..<payload.count)
+            decodeQueue.async { [weak self] in
+                guard let self = self else { return }
+                self.player.enqueue(body, keyframe: keyframe)
+                self.countFrame()
             }
         default:
             break
@@ -192,15 +224,19 @@ final class USBServer: ObservableObject {
             AppLog.shared.add("Could not decode a frame (\(payload.count) bytes)")
         }
         send(.ack)
+        countFrame()
+    }
 
+    /// Counts frames and logs the rate every 5 seconds. Only called on decodeQueue.
+    private func countFrame() {
         frameCount += 1
+        if frameCount == 1 { setStatus("Connected") }
         let elapsed = Date().timeIntervalSince(statsStart)
         if elapsed >= 5 {
             AppLog.shared.add(String(format: "%.0f fps", Double(frameCount) / elapsed))
             frameCount = 0
             statsStart = Date()
         }
-        if frameCount == 1 { setStatus("Connected") }
     }
 
     // MARK: sending (any thread)

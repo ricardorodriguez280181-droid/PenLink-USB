@@ -11,8 +11,12 @@ struct PenSurface: UIViewRepresentable {
             server?.sendPen(samples)
         }
         view.onToggleLog = onToggleLog
+        view.attach(videoLayer: server.player.layer)
         server.onFrame = { [weak view] image in
             view?.show(image)
+        }
+        server.onHello = { [weak view] size, codec in
+            view?.configure(size: size, video: codec == "h264")
         }
         return view
     }
