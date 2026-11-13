@@ -1,0 +1,66 @@
+name: Build iPad app
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project PenLink.xcodeproj \
+            -scheme PenLink \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build.log
+
+      - name: Package the .ipa
+        working-directory: ios
+        run: |
+          rm -rf Payload PenLink.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/PenLink.app Payload/
+          zip -qr PenLink.ipa Payload
+          ls -lh PenLink.ipa
+
+      - name: Upload the .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: PenLink-ipa
+          path: ios/PenLink.ipa
+
+      - name: Show the errors (if the build failed)
+        if: failure()
+        working-directory: ios
+        run: |
+          echo "### Build errors" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "error:" build.log | sort -u | head -40 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the full build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ios/build.log
+          if-no-files-found: ignore
