@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+penlink/penlink_secret.txt
+penlink/penlink_settings.json
+ios/PenLink.xcodeproj/
+ios/PenLink/Info.plist
+ios/build/
+ios/build.log
+ios/Payload/
+*.ipa
